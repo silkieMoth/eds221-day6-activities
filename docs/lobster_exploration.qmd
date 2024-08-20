@@ -1,0 +1,165 @@
+---
+title: "lobster_exploration"
+author: "guy_fawkes_mask"
+format: html
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+rm(list = rm())
+```
+
+
+```{r}
+library(tidyverse)
+library(here)
+library(janitor)
+library(dplyr)
+```
+
+# pt 2 or something
+
+## load in csv + -99999 = NA
+```{r}
+lobster_abundance <- read_csv(here("data", "Lobster_Abundance_All_Years_20210412.csv"), na = c("-99999", ""))
+```
+
+
+## feed abundance to cleanup
+```{r}
+lobster_cleanup <- lobster_abundance
+```
+
+
+## convert column names to lower snake case + uncount
+
+## uncount did row * count value, so now there are "count" number of duplicates in the table
+```{r}
+lobster_cleanup <- lobster_cleanup %>% clean_names() %>% uncount(count)
+```
+
+## lets fucking go
+
+```{r}
+count_n_length_smmry <- lobster_cleanup %>% group_by(site, year) %>% summarize(count_by_year = n(), mean_carp = mean(size_mm, na.rm = TRUE))
+```
+
+## ggplot + faceting
+```{r}
+ggplot(data = count_n_length_smmry, aes(x = year, y = count_by_year)) + geom_point(size = 3) + facet_wrap(~ site)
+```
+
+## subset to just 2020
+```{r}
+lobster_2020 <- lobster_cleanup %>% filter(year == "2020")
+```
+
+## get counts for lobsters observed at each site in 2020
+
+### add the filled legal column
+#### i know i was supposed to use case when but i didnt read that far sorry
+#### anyway this still works
+```{r}
+lobster_2020 <- lobster_2020 %>% mutate(legal = if_else(size_mm >= 79.76, "yes", if_else(size_mm < 79.76, "no", "none")))
+```
+
+### subset of legal counts by site + add yes + no somehow
+```{r}
+lobster_2020_legal <- lobster_2020 %>% group_by(site) %>% count(legal)
+
+lob_2020_pivot_wd <- lobster_2020_legal %>% pivot_wider(names_from = legal, values_from = n)
+
+lobster_2020_legal <- lob_2020_pivot_wd %>% mutate(total = yes + no)
+```
+
+
+
+### make the stacked column graph
+### i computed totals then i just divided them by the yeses
+```{r}
+ggplot(data = lobster_2020_legal, aes(x = site, y = yes/total)) + geom_col()
+
+```
+
+# pt 3 - practice
+
+## filter()
+
+### ex a
+```{r}
+ex_a <- lobster_cleanup %>% filter(site == c("IVEE", "CARP", "NAPL"))
+```
+
+### ex b
+```{r}
+ex_b <- lobster_cleanup %>% filter(month == 8)
+```
+
+### ex c
+```{r}
+ex_c <- lobster_cleanup %>% filter(site == "AQUE" | size_mm > 70)
+
+```
+
+### ex d
+```{r}
+ex_d <- lobster_cleanup %>% filter(site != "NAPL")
+```
+
+## group_by() %>% summarize()
+
+### ex_e
+```{r}
+ex_e <- lobster_cleanup %>% group_by(site) %>% summarize(cara_mean = mean(size_mm, na.rm = TRUE), cara_sd = sd(size_mm, na.rm = TRUE))
+
+```
+
+### ex_f
+```{r}
+ex_f <- lobster_cleanup %>% group_by(site, month) %>% summarize(max_cara = max(size_mm, na.rm = TRUE))
+```
+
+## mutate()
+
+### ex_g
+```{r}
+ex_g <- lobster_cleanup %>% mutate(length_cm = size_mm * 0.1)
+
+```
+
+### ex_h
+```{r}
+ex_h <- lobster_cleanup %>% mutate(site = tolower(site))
+
+```
+
+### ex_i
+```{r}
+ex_i <- lobster_cleanup %>% mutate(area = as.character(area))
+
+```
+
+## case_when()
+
+### ex_j
+```{r}
+ex_j <- lobster_cleanup %>% 
+  mutate(size_bin = case_when(
+    size_mm <= 70 ~ "small",
+    size_mm > 70 ~ "large"
+  )
+)
+
+```
+
+### ex_k
+```{r}
+ex_k <- lobster_cleanup %>% 
+  mutate(designation = case_when(
+    site == "IVEE" | site == "NAPL" ~ "MPA",
+    .default = "not MPA"
+  )
+)
+
+```
